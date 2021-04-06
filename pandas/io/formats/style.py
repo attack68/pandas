@@ -201,6 +201,8 @@ class Styler:
         self.hidden_index: bool = False
         self.hidden_columns: Sequence[int] = []
         self.ctx: DefaultDict[Tuple[int, int], CSSList] = defaultdict(list)
+        self.ctx_index: DefaultDict[Tuple[int, int], CSSList] = defaultdict(list)
+        self.ctx_columns: DefaultDict[Tuple[int, int], CSSList] = defaultdict(list)
         self.cell_context: DefaultDict[Tuple[int, int], str] = defaultdict(str)
         self._todo: List[Tuple[Callable, Tuple, Dict]] = []
         self.tooltips: Optional[_Tooltips] = None
@@ -1365,16 +1367,86 @@ class Styler:
 
     def set_header_styles(
         self,
-        keys: Union[IndexLabel, List[IndexLabel]],
-        axis: str = 'index',
-    ):
+        keys: Union[IndexLabel, List[IndexLabel]] = None,
+        axis: Union[str, int] = "both",
+        props: CSSProperties = "font-weight: bold;",
+        index_levels: Optional[List[int]] = None,
+        column_levels: Optional[List[int]] = None,
+    ) -> Styler:
         """
-        Set the styles
+        Set the styles on index and column headers.
 
-        :param keys:
-        :param header:
-        :return:
+        Parameters
+        ----------
+        keys : value, list, or IndexSlice, optional
+            Valid input to DataFrame.loc, according to ``axis``. If not given will
+            apply styles generically using table styles.
+        axis : int or str
+            Indicates how the ``keys`` should be interpreted to DataFrame.loc, i.e.
+            which axis styles are applied to.
+        props : str or list of tuples
+            CSS properties to use as styling.
+        index_levels : list, optional
+            If given will apply ``props`` only to the specified levels in a MultiIndex.
+        column_levels : list, optional
+            If given will apply ``prop`` only to the specified levels in a MultiIndex.
+
+        Returns
+        -------
+        self : Styler
+
+        Notes
+        -----
+        If an indexer is given styles will be added by individual element ids, if
+        ``None``, then a generic class is added to ``table_styles``, for the relevant
+        header or level of header.
         """
+        if axis not in ["both", "index", "columns", 0, 1]:
+            raise ValueError("`axis` must be one of {'both', 'index', 'columns', 0, 1}")
+
+        props = _maybe_convert_css_to_tuples(props)
+
+        if not index_levels:  # default to all levels
+            index_levels = list(range(self.data.index.nlevels))
+        if not column_levels:
+            column_levels = list(range(self.data.columns.nlevels))
+
+        table_styles, index_styles, column_styles = [], [], []
+        if keys is None:  # apply generic table level styling
+            if axis in ["both", "index", 0]:
+                index_styles = [
+                    {"selector": f"tbody th.level{level}", "props": props}
+                    for level in index_levels
+                ]
+            if axis in ["both", "columns", 1]:
+                column_styles = [
+                    {"selector": f"thead th.level{level}", "props": props}
+                    for level in column_levels
+                ]
+            table_styles.append(index_styles + column_styles)
+        else:  # add styling to index or columns ctx object for individual rendering
+            row_indexes: List = []
+            col_indexes: List = []
+
+            if axis == "both":
+                _ = self.data.loc[keys]
+                row_indexes = self.data.index.get_indexer(_.index).tolist()
+                col_indexes = self.data.columns.get_indexer(_.columns).tolist()
+            elif axis in ["index", 0]:
+                _ = self.data.loc[keys, :]
+                row_indexes = self.data.index.get_indexer(_.index).tolist()
+            else:  # axis in ["columns", 1]
+                _ = self.data.loc[:, keys]
+                col_indexes = self.data.columns.get_indexer(_.columns).tolist()
+
+            for row_index in row_indexes:
+                for lvl in index_levels:
+                    self.ctx_index[row_index, lvl] = props
+            for col_index in col_indexes:
+                for lvl in column_levels:
+                    self.ctx_columns[lvl, col_index] = props
+
+        return self.set_table_styles(table_styles, overwrite=False)
 
     def set_na_rep(self, na_rep: str) -> Styler:
         """
