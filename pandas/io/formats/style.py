@@ -1363,6 +1363,19 @@ class Styler:
             self.table_styles = table_styles
         return self
 
+    def set_header_styles(
+        self,
+        keys: Union[IndexLabel, List[IndexLabel]],
+        axis: str = 'index',
+    ):
+        """
+        Set the styles
+
+        :param keys:
+        :param header:
+        :return:
+        """
+
     def set_na_rep(self, na_rep: str) -> Styler:
         """
         Set the missing data representation on a ``Styler``.
