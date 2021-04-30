@@ -2494,6 +2494,51 @@ def test_loc_with_period_index_indexer():
     tm.assert_frame_equal(df, df.loc[list(idx)])
 
 
+@pytest.mark.parametrize(
+    "case",
+    [
+        ["a", ["int64", "int64", "int64", "int64"]],  # single valid unique key
+        ["b", ["int64", "int64", "Series", "Series"]],  # single valid non-unique key
+        ["!", ["KeyError", "KeyError", "KeyError", "KeyError"]],  # single invalid key
+        [["a"], ["Series", "Series", "Series", "Series"]],  # single valid key as list
+        [["b"], ["Series", "Series", "Series", "Series"]],  # single valid non-uniq list
+        [["!"], ["KeyError", "KeyError", "KeyError", "KeyError"]],  # invalid key as lst
+        [["a", "c"], ["Series", "Series", "Series", "Series"]],  # multiple valid keys
+        [["a", "!"], ["KeyError", "KeyError", "KeyError", "KeyError"]],  # >0 invld keys
+        [IndexSlice["a":"c"], ["Series", "Series", "Series", "Series"]],  # vald key slc
+        [IndexSlice["a":"!"], ["KeyError", "Series", "KeyError", "Series"]],  # >0 invld
+        [IndexSlice["!":], ["KeyError", "Series", "KeyError", "Series"]],  # only invld
+        [IndexSlice["b":"c"], ["Series", "Series", "Series", "Series"]],  # slc non-uniq
+    ],
+)
+def test_loc_comprehensive_all_string_cases(case):
+    indexes = [
+        Index(["a", "c", "b", "d"], name="Unique Non-Monotonic"),
+        Index(["a", "c", "b", "d"], name="Unique Monotonic").sort_values(),
+        Index(["a", "c", "b", "b"], name="Non-Unique Non-Monotonic"),
+        Index(["a", "c", "b", "b"], name="Non-Unique Monotonic").sort_values(),
+    ]
+
+    def do(series, case):
+        """execute the loc lookup and get the return"""
+        try:
+            ret = series.loc[case]
+        except KeyError:
+            return "KeyError"
+        else:
+            if isinstance(ret, (np.int64)):
+                return "int64"
+            elif isinstance(ret, (Series)):
+                return "Series"
+            elif isinstance(ret, (DataFrame)):
+                return "DataFrame"
+            return "OtherType"
+
+    for j, index in enumerate(indexes):
+        series = Series([1, 2, 3, 4], index=index)
+        assert do(series, case[0]) == case[1][j]
+
+
 class TestLocSeries:
     @pytest.mark.parametrize("val,expected", [(2 ** 63 - 1, 3), (2 ** 63, 4)])
     def test_loc_uint64(self, val, expected):
