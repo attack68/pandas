@@ -762,6 +762,12 @@ styler_max_elements = """
     trimming will occur over columns, rows or both if needed.
 """
 
+styler_notebook_repr = """
+: str
+    The default output format whenever a Styler object is rendered in a Jupyter
+    Notebook. Accepts {"html", "latex"}.
+"""
+
 with cf.config_prefix("styler"):
     cf.register_option("sparse.index", True, styler_sparse_index_doc, validator=bool)
 
@@ -774,4 +780,11 @@ with cf.config_prefix("styler"):
         2 ** 18,
         styler_max_elements,
         validator=is_nonnegative_int,
+    )
+
+    cf.register_option(
+        "render.notebook_repr",
+        "html",
+        styler_notebook_repr,
+        validator=is_one_of_factory(["html", "latex"]),
     )
