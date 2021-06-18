@@ -213,7 +213,10 @@ class Styler(StylerRenderer):
         """
         Hooks into Jupyter notebook rich display system.
         """
-        return self.render()
+        if get_option("styler.render.notebook_repr") == "html":
+            return self.to_html()
+        elif get_option("styler.render.notebook_repr") == "latex":
+            return self.to_latex()
 
     def render(
         self,
