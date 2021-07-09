@@ -260,6 +260,30 @@ def test_clear(mi_styler_comp):
         assert all(res) if hasattr(res, "__iter__") else res
 
 
+@pytest.mark.parametrize("hide_i", ["True", "False"])
+@pytest.mark.parametrize("hide_c", ["True", "False"])
+def test_multiindex_names_and_hiding(mi_styler, hide_i, hide_c):
+    # test how multiindex names, and their index values display and interact with
+    # hiding entire indexes
+    mi_styler.index.names = ["zero_i", "one_i"]
+    mi_styler.columns.names = ["zero_c", "one_c"]
+    default_ctx = mi_styler._translate(True, True)
+
+    if hide_i == "True":
+        mi_styler.hide_index()
+    if hide_c == "True":
+        mi_styler.hide_columns()
+    result_ctx = mi_styler._translate(True, True)
+
+    # generic test
+    assert (default_ctx == result_ctx) is (hide_i == "False" and hide_c == "False")
+
+    # granular test of body
+    # exp = {"display_value": "i0"}
+
+    assert result_ctx["body"][0] == "2"
+
+
 class TestStyler:
     def setup_method(self, method):
         np.random.seed(24)
